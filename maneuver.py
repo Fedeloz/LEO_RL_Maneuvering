@@ -5,26 +5,28 @@ from matplotlib.lines import Line2D
 import matplotlib.cm as cm
 
 
+# -----------------
 # Constants Section
 # -----------------
+
+# Physics
 G = 6.67430e-11  # Gravitational constant in m^3 kg^-1 s^-2
 M = 5.972e24  # Mass of Earth in kg
 EARTH_RADIUS = 6371e3  # Earth's radius in meters
 ORBIT_ALTITUDE = 575e3  # Orbit altitude in meters
-ANORMAL_PERIOD = 20 # In minutes of simulated time, period of time when a satellite has anormal speed
+
+ORBITAL_RADIUS = EARTH_RADIUS + ORBIT_ALTITUDE  # Total radius from Earth's center in meters
+ORBITAL_SPEED = np.sqrt(G * M / ORBITAL_RADIUS)  # Orbital speed in m/s
+ORBITAL_PERIOD_SIMULATED = 2 * np.pi * ORBITAL_RADIUS / ORBITAL_SPEED  # Orbital period in seconds (simulated time)
+
+# Constellation
+NUM_PLANES = 3
+SATELLITES_PER_PLANE = 4
 PROXIMITY_THRESHOLD = 5000e3  # Threshold distance for proximity detection
 PLANE_DELTA = 30 # Inclination difference between angles
+ANORMAL_PERIOD = 20 # In minutes of simulated time, period of time when a satellite has anormal speed
 
-SAVE_AS_GIF = False  # Set this to True to save the animation as a GIF
-
-# Calculate the orbital radius
-ORBITAL_RADIUS = EARTH_RADIUS + ORBIT_ALTITUDE  # Total radius from Earth's center in meters
-
-# Calculate the orbital speed (v)
-ORBITAL_SPEED = np.sqrt(G * M / ORBITAL_RADIUS)  # Orbital speed in m/s
-
-# Orbital period in simulated time
-ORBITAL_PERIOD_SIMULATED = 2 * np.pi * ORBITAL_RADIUS / ORBITAL_SPEED  # Orbital period in seconds (simulated time)
+SAVE_AS_GIF = False  # Set this to True to save the animation as a .gif
 
 # Time Converter Functions
 def convert_real_to_simulated(real_time_seconds, orbital_period_simulated, real_time_duration):
@@ -57,11 +59,14 @@ print(f"Time Step (Simulated): {TIME_STEP_SIMULATED:.2f} seconds")
 print(f"Time Step (Real): {TIME_STEP_REAL:.6f} seconds")
 print(f"Total Simulation Time: {TOTAL_SIMULATION_TIME:.2f} seconds ({NUM_ORBITS} orbital periods)")
 
+
+# ---------------
 # Classes Section
 # ---------------
+
 class Satellite:
     def __init__(self, satellite_id, initial_angle, orbital_speed, orbital_radius, inclination, real_time_duration=10):
-        self.id = satellite_id  # Satellite ID
+        self.id = satellite_id
         self.angle = initial_angle
         self.orbital_speed = orbital_speed  # Orbital speed in m/s
         self.position = np.zeros(3)
@@ -94,9 +99,9 @@ class Satellite:
 
         # Calculate the new position based on the updated angle
         self.position = [
-            self.orbital_radius * np.cos(self.angle) * np.cos(self.inclination),  # X position
-            self.orbital_radius * np.sin(self.angle),  # Y position
-            self.orbital_radius * np.cos(self.angle) * np.sin(self.inclination)   # Z position
+            self.orbital_radius * np.cos(self.angle) * np.cos(self.inclination),    # X position
+            self.orbital_radius * np.sin(self.angle),                               # Y position
+            self.orbital_radius * np.cos(self.angle) * np.sin(self.inclination)     # Z position
         ]
 
         # Check proximity to neighbors
@@ -140,8 +145,6 @@ class OrbitalPlane:
         for satellite in self.satellites:
             satellite.update_position(time_step_real)
 
-
-
     def get_orbital_plane_points(self, steps=100):
         t = np.linspace(0, 2 * np.pi, steps)
         x_plane = self.orbital_radius * np.cos(t) * np.cos(self.inclination)
@@ -164,12 +167,13 @@ class Earth:
         for plane in self.orbital_planes:
             plane.update_positions(time_step_real)
 
+
+# -------------
 # Main Function
 # -------------
+
 def main():
     # Initialize Earth with its orbital planes and satellites
-    NUM_PLANES = 3
-    SATELLITES_PER_PLANE = 4
     earth = Earth(radius=EARTH_RADIUS, num_planes=NUM_PLANES, satellites_per_plane=SATELLITES_PER_PLANE)
 
     # Initialize the satellite selection and timing
@@ -178,7 +182,7 @@ def main():
 
     # Create the plot
     fig = plt.figure(figsize=(14, 10))  # Increase the figure size, e.g., 12x12 inches
-    fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)  # Reduce the margins
+    # fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)  # Reduce the margins
     ax = fig.add_subplot(111, projection='3d')
 
     # Main loop
@@ -189,7 +193,7 @@ def main():
         if not hasattr(update_plot, "elapsed_time"):
             update_plot.elapsed_time = 0  # Initialize on the first call
 
-        update_plot.elapsed_time += TIME_STEP_SIMULATED  # Accumulate the time step correctly with the simulated time step
+        update_plot.elapsed_time += TIME_STEP_SIMULATED  # Accumulate the time step with the simulated time step
 
         # Convert accumulated time to simulated time in minutes
         simulated_elapsed_time_minutes = update_plot.elapsed_time / 60
@@ -201,16 +205,16 @@ def main():
 
         ax.clear()
 
-        # Plot Earth with more transparency and lighter color
+        # Plot Earth
         u = np.linspace(0, 2 * np.pi, 100)
         v = np.linspace(0, np.pi, 100)
         x = earth.radius * np.outer(np.cos(u), np.sin(v))
         y = earth.radius * np.outer(np.sin(u), np.sin(v))
         z = earth.radius * np.outer(np.ones(np.size(u)), np.cos(v))
-        ax.plot_surface(x, y, z, color='lightblue', alpha=0.3)  # lighter color and more transparency
+        ax.plot_surface(x, y, z, color='lightblue', alpha=0.3)
 
         # Generate colors for each plane
-        colors = cm.get_cmap('tab10', len(earth.orbital_planes))  # Use a colormap with a number of colors equal to the number of planes
+        colors = cm.get_cmap('tab10', len(earth.orbital_planes))
 
         # Update and plot each orbital plane and its satellites
         for i, plane in enumerate(earth.orbital_planes):
@@ -219,11 +223,11 @@ def main():
             ax.plot(x_plane, y_plane, z_plane, '--', color=colors(i))
 
             for satellite in plane.satellites:
-                # Plot the satellite as a colored circle
+                # Plot satellites
                 ax.plot([satellite.position[0]], [satellite.position[1]], [satellite.position[2]], 'o',
                         color=colors(i), markersize=10, markerfacecolor=colors(i))
 
-                # Plot the satellite ID inside the circle
+                # Plot the satellite ID inside
                 ax.text(satellite.position[0], satellite.position[1], satellite.position[2],
                         f'{satellite.id}', color='white', fontsize=8, ha='center', va='center', weight='bold')
 
@@ -240,7 +244,7 @@ def main():
 
                 # Ensure the new satellite is different from the current one
                 new_selected_satellite = selected_satellite
-                while new_selected_satellite == selected_satellite and SATELLITES_PER_PLANE > 1:
+                while new_selected_satellite == selected_satellite and SATELLITES_PER_PLANE > 1: # FIXME Always in the first plane, the rest are forgotten
                     new_selected_satellite = np.random.randint(SATELLITES_PER_PLANE)
                 
                 selected_satellite = new_selected_satellite
@@ -278,10 +282,8 @@ def main():
     ani = FuncAnimation(fig, animate, frames=np.linspace(0, TOTAL_SIMULATION_TIME, 200), interval=100)
 
     if SAVE_AS_GIF:
-        # Save the animation as a GIF
-        ani.save('satellite_simulation.gif', writer='pillow', fps=20)  # Adjust FPS as needed
+        ani.save('satellite_simulation.gif', writer='pillow', fps=20)
     else:
-        # Show the animation in a window
         plt.show()
 
 if __name__ == "__main__":
